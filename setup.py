@@ -5,8 +5,8 @@ from __future__ import absolute_import
 import se_dns
 import distutils.core
 
-REQUIRES = []
-DESCRIPTION = """Simple to use pre-forking server interface."""
+REQUIRES = ["dnspython==1.12.0"]
+DESCRIPTION = """Simple dns tools."""
 
 CLASSIFIERS = [
     "Operating System :: POSIX",
