@@ -1,0 +1,11 @@
+"""Define Combined DNSBL lists"""
+
+
+COMBINED_DNSBL = {
+}
+COMBINED_DNSBL_REVERSE = {
+}
+COMBINED_URLBL = {
+}
+COMBINED_URLBL_REVERSE = {
+}
