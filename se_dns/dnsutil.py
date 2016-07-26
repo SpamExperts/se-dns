@@ -42,10 +42,15 @@ class Cache(object):
     """Provide a simple-to-use interface to DNS lookups, which caches the
     results in memory."""
 
+   # XXX Now that we don't care about SpamBayes compatibility, we should
+   # XXX drop the camelCase.
     def __init__(self, dnsServer=None, returnSinglePTR=True, dnsTimeout=10,
                  minTTL=0, cachefile=""):
+        # XXX We should either provide a logger or use __file__ or something
+        # XXX else specific to this package, not "se-filter".
         self.logger = logging.getLogger('se-filter')
         # We don't use the cachefile argument, but it may be provided.
+        # XXX We can probably just drop cachefile now.
         if cachefile:
             self.logger.warn("Caching to file is not supported.")
 
@@ -57,6 +62,9 @@ class Cache(object):
         # forward ("A") lookups always return a list. Reverse ("PTR")
         # lookups return a single name unless this attribute is set to
         # False.
+        # XXX I don't think we really care about supporting this case here
+        # XXX so we could just drop this argument and always have this
+        # XXX behaviour.
         self.returnSinglePTR = returnSinglePTR
 
         # Some servers always return a TTL of zero. In those cases, turning
@@ -79,6 +87,7 @@ class Cache(object):
         # generally short-lived, and sometimes errors are slow to generate.
         self.failures = {}
 
+    # XXX We could just drop this method.
     def close(self):
         """Perform any cleanup necessary.
 
@@ -140,8 +149,8 @@ class Cache(object):
 
 
 class _DNSCache(Cache):
-    """Like the parent, but also knows about the se-combined DNSBL that
-    enables checking many DNSBL with a single lookup.
+    """Like the parent, but also knows about the combined DNSBL and URLBL
+    that enable checking many DNSBL / URLBL with a single lookup.
 
     Use is transparent to the caller - i.e. they use the normal name for
     the list, and this class does the work of deciding whether to instead
@@ -151,7 +160,7 @@ class _DNSCache(Cache):
     # because we can't combine white and black lists, and we don't
     # combine lists that return multiple results).
     # Note that DNSBL and URLBL are convenient labels, but DNSWL and
-    # URLYL are also here.
+    # URLYL may also be also here.
     COMBINED_DNSBL = conf.COMBINED_DNSBL
     COMBINED_DNSBL_REVERSE = conf.COMBINED_DNSBL_REVERSE
     COMBINED_DNSBL_REVERSE_VALUES = COMBINED_DNSBL_REVERSE.values()
@@ -164,43 +173,47 @@ class _DNSCache(Cache):
         to query, and 'qType' should be the type of record to get
         (e.g. TXT, A, AAAA, PTR).
 
-        If the lookup is within a domain that is handled by se-combined,
-        then re-write the query so that it queries that list instead.
+        If the lookup is within a domain that is handled by a combined
+        list, then re-write the query so that it queries that list instead.
         We rely on the parent class caching the results so that when
         multiple lists in the combined system are queried, all but the
-        first of these is pulled from the cache.  The same applies to
-        se-url-combined.
+        first of these is pulled from the cache.
 
         When the question is not for one of the lists handled by
-        se-combined the result is exactly the same as provided by
-        spambayes.dnscache.cache.lookup.
+        a combined list the result is exactly the same as provided by
+        Cache.lookup.
         When the question is one for one of the lists handled by
-        se-combined or se-url-combined, but the result indicates that
-        the address is not listed, the result is an empty list.
+        a combined list, but the result indicates that the address is
+        not listed, the result is an empty list.
         When the question is one for one of the lists handled by
-        se-combined or se-url-combined, and the result indicates that
-        the address is listed, the result is always ["127.0.0.2"] - it
-        is *not* the raw se-combined or se-url-combined result.
+        a combined list, and the result indicates that the address is
+        listed, the result is always ["127.0.0.2"] - it is *not* the
+        raw combined result.
         """
         logger = logging.getLogger("se-filter")
         rewrite_answer = None
         reverse_dict = None
 
+        # XXX It would be better if this worked with any naming scheme.
         # Our lists always have 4 labels.
-        # E.g: ip-03.rbl.spamrl.com
+        # E.g: list1.dnsbl.example.com
 
         question_split = question.split(".")
         original_list = ".".join(question_split[-4:])
         address = ".".join(question_split[:-4])
 
         if original_list in self.COMBINED_DNSBL_REVERSE_VALUES:
-            logger.debug("Rewriting %s to use se-combined.", question)
+            logger.debug("Rewriting %s to use combined list.", question)
             rewrite_answer = original_list
+            # XXX This needs to load the question from the configuration, not
+            # XXX be hard-coded.
             question = address + ".se-combined.rbl.spamrl.com"
             reverse_dict = self.COMBINED_DNSBL_REVERSE
         elif original_list in self.COMBINED_URLBL_REVERSE_VALUES:
-            logger.debug("Rewriting %s to use se-url-combined.", question)
+            logger.debug("Rewriting %s to usecombined list.", question)
             rewrite_answer = original_list
+            # XXX This needs to load the question from the configuration, not
+            # XXX be hard-coded.
             question = address + ".se-url-combined.rbl.spamrl.com"
             reverse_dict = self.COMBINED_URLBL_REVERSE
 
@@ -241,7 +254,7 @@ class DNSCache(object):
             _DNS_CACHE.COMBINED_URLBL_REVERSE_VALUES
 
     def lookup(self, question, qType="A", cType="IN", exact=False):
-        """Like spambayes.dnscache.cache.lookup()"""
+        """Like Cache.lookup()"""
         # XXX This is not thread-safe
         _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
         return _DNS_CACHE.lookup(question, qType, cType, exact)
