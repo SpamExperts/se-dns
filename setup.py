@@ -5,7 +5,7 @@ from __future__ import absolute_import
 import se_dns
 import distutils.core
 
-REQUIRES = ["dnspython==1.12.0"]
+REQUIRES = ["dnspython"]
 DESCRIPTION = """Simple dns tools."""
 
 CLASSIFIERS = [
