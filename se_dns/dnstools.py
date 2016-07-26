@@ -1,13 +1,13 @@
 import os
 import pwd
+import time
 import socket
 import ipaddr
-import subprocess
-import time
 import pickle
 import urllib2
 import urlopen
 import httplib
+import subprocess
 
 from dnsutil import DNSCache
 import se_dns
@@ -91,6 +91,7 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
         if logger:
             logger.warn("Unable to cache IP list: %s", e)
     else:
+        # XXX This should not have the users hard-coded.
         if adjust_cache:
             # The cache might be created by the API (www-data), local_scan
             # (Debian-exim), or setup/update (root).  Ensure that everyone
