@@ -1,4 +1,4 @@
-"""A wrapper around spambayes.dnscache
+"""A wrapper around dnspython.
 
 The wrapper adds two sets of functionality.
 
@@ -17,6 +17,8 @@ the value in a "combined" result, which provides results for many
 different lists, for the first lookup, and then uses that information
 for all subsequent checks.  From the caller's point of view, the
 original list is being checked.
+
+This code was originally based on the dnscache in SpamBayes.
 """
 
 from __future__ import absolute_import
