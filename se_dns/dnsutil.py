@@ -30,12 +30,19 @@ import dns.resolver
 import dns.exception
 import dns.rdatatype
 import dns.rdataclass
+import dns.reversename
 
 from . import conf
 
 DNSException = dns.exception.DNSException
 EmptyLabel = dns.name.EmptyLabel
 LabelTooLong = dns.name.LabelTooLong
+
+# XXX This is a workaround for an issue with relative/absoluting
+# XXX importing and name conflicts in our internal code. Since no value
+# XXX is added here (dnsutil.dns.reversename could even be used) we
+# XXX should work on removing this.
+reversename = dns.reversename
 
 
 class Cache(object):
