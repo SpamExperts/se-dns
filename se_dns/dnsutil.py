@@ -48,6 +48,7 @@ reversename = dns.reversename
 class Cache(object):
     """Provide a simple-to-use interface to DNS lookups, which caches the
     results in memory."""
+    timeout_log_level = "info"
 
    # XXX Now that we don't care about SpamBayes compatibility, we should
    # XXX drop the camelCase.
@@ -122,7 +123,8 @@ class Cache(object):
                 return []
             except dns.exception.Timeout:
                 # This may change next time this is run, so warn about that.
-                self.logger.info("%s %s lookup timed out.", question, qType)
+                log_method = getattr(self.logger, self.timeout_log_level)
+                log_method("%s %s lookup timed out.", question, qType)
                 self.failures[question, rdtype, rdclass] = []
                 return []
             except (dns.resolver.NoAnswer, dns.resolver.NoNameservers) as e:
