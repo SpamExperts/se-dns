@@ -38,56 +38,33 @@ DNSException = dns.exception.DNSException
 EmptyLabel = dns.name.EmptyLabel
 LabelTooLong = dns.name.LabelTooLong
 
-# XXX This is a workaround for an issue with relative/absoluting
-# XXX importing and name conflicts in our internal code. Since no value
-# XXX is added here (dnsutil.dns.reversename could even be used) we
-# XXX should work on removing this.
-reversename = dns.reversename
-
 
 class Cache(object):
     """Provide a simple-to-use interface to DNS lookups, which caches the
     results in memory."""
     timeout_log_level = "info"
 
-   # XXX Now that we don't care about SpamBayes compatibility, we should
-   # XXX drop the camelCase.
-    def __init__(self, dnsServer=None, returnSinglePTR=True, dnsTimeout=10,
-                 minTTL=0, cachefile=""):
-        # XXX We should either provide a logger or use __file__ or something
-        # XXX else specific to this package, not "se-filter".
-        self.logger = logging.getLogger('se-filter')
+    def __init__(self, dnsserver=None, dnstimeout=10,
+                 minttl=0, cachefile=""):
+        self.logger = logging.getLogger("se-dns")
         # We don't use the cachefile argument, but it may be provided.
         # XXX We can probably just drop cachefile now.
         if cachefile:
             self.logger.warn("Caching to file is not supported.")
 
-        # As far as I (Matthew) can tell from the standards, it's legal to
-        # have more than one PTR record for an address. That is, it's legal
-        # to get more than one name back when you do a reverse lookup on an
-        # IP address. I don't know of a use for that and I've never seen it
-        # done. And I don't think that most people would expect it. So
-        # forward ("A") lookups always return a list. Reverse ("PTR")
-        # lookups return a single name unless this attribute is set to
-        # False.
-        # XXX I don't think we really care about supporting this case here
-        # XXX so we could just drop this argument and always have this
-        # XXX behaviour.
-        self.returnSinglePTR = returnSinglePTR
-
         # Some servers always return a TTL of zero. In those cases, turning
         # this up a bit is probably reasonable.
-        self.minTTL = minTTL
+        self.minTTL = minttl
 
         self.queryObj = dns.resolver.Resolver()
-        if dnsServer:
-            self.queryObj.nameservers = [dnsServer]
+        if dnsserver:
+            self.queryObj.nameservers = [dnsserver]
 
         # How long to wait for the server (in seconds).
         # dnspython has a "timeout" value (for each nameserver) and a
         # "lifetime" value (for the complete query).  We're happy with the
         # 2 second default timeout, but want to limit the overall query.
-        self.queryObj.lifetime = dnsTimeout
+        self.queryObj.lifetime = dnstimeout
 
         # Use the package's caching system.
         self.queryObj.cache = dns.resolver.Cache()
@@ -95,20 +72,12 @@ class Cache(object):
         # generally short-lived, and sometimes errors are slow to generate.
         self.failures = {}
 
-    # XXX We could just drop this method.
-    def close(self):
-        """Perform any cleanup necessary.
-
-        Since we cannot print statistics on close, and since we do not need
-        to write to disk, there is nothing to do here."""
-        pass
-
-    def lookup(self, question, qType="A", cType="IN", exact=False):
+    def lookup(self, question, qtype="A", ctype="IN", exact=False):
         """Do an actual lookup.  'question' should be the hostname or IP to
         query, and 'qType' should be the type of record to get (e.g. TXT,
         A, AAAA, PTR)."""
-        rdtype = dns.rdatatype.from_text(qType)
-        rdclass = dns.rdataclass.from_text(cType)
+        rdtype = dns.rdatatype.from_text(qtype)
+        rdclass = dns.rdataclass.from_text(ctype)
         try:
             return self.failures[question, rdtype, rdclass]
         except KeyError:
@@ -124,25 +93,25 @@ class Cache(object):
             except dns.exception.Timeout:
                 # This may change next time this is run, so warn about that.
                 log_method = getattr(self.logger, self.timeout_log_level)
-                log_method("%s %s lookup timed out.", question, qType)
+                log_method("%s %s lookup timed out.", question, qtype)
                 self.failures[question, rdtype, rdclass] = []
                 return []
             except (dns.resolver.NoAnswer, dns.resolver.NoNameservers) as e:
-                if qType not in ("MX", "AAAA", "TXT"):
+                if qtype not in ("MX", "AAAA", "TXT"):
                     # These indicate a problem with the nameserver.
                     self.logger.debug("%s %s lookup failed: %s", question,
-                                      qType, e)
+                                      qtype, e)
                 self.failures[question, rdtype, rdclass] = []
                 return []
             except (ValueError, IndexError) as e:
                 # A bad DNS entry.
-                self.logger.warn("%s %s lookup failed: %s", question, qType,
+                self.logger.warn("%s %s lookup failed: %s", question, qtype,
                                  e)
                 self.failures[question, rdtype, rdclass] = []
                 return []
             except struct.error as e:
                 # A bad DNS entry.
-                self.logger.warn("%s %s lookup failed: %s", question, qType,
+                self.logger.warn("%s %s lookup failed: %s", question, qtype,
                                  e)
                 self.failures[question, rdtype, rdclass] = []
                 return []
@@ -170,6 +139,8 @@ class _DNSCache(Cache):
     # combine lists that return multiple results).
     # Note that DNSBL and URLBL are convenient labels, but DNSWL and
     # URLYL may also be also here.
+    COMBINED = conf.COMBINED
+    COMBINED_URL = conf.COMBINED_URL
     COMBINED_DNSBL = conf.COMBINED_DNSBL
     COMBINED_DNSBL_REVERSE = conf.COMBINED_DNSBL_REVERSE
     COMBINED_DNSBL_REVERSE_VALUES = COMBINED_DNSBL_REVERSE.values()
@@ -177,7 +148,7 @@ class _DNSCache(Cache):
     COMBINED_URLBL_REVERSE = conf.COMBINED_URLBL_REVERSE
     COMBINED_URLBL_REVERSE_VALUES = COMBINED_URLBL_REVERSE.values()
 
-    def lookup(self, question, qType="A", cType="IN", exact=False):
+    def lookup(self, question, qtype="A", ctype="IN", exact=False):
         """Do an actual lookup.  'question' should be the hostname or IP
         to query, and 'qType' should be the type of record to get
         (e.g. TXT, A, AAAA, PTR).
@@ -199,7 +170,7 @@ class _DNSCache(Cache):
         listed, the result is always ["127.0.0.2"] - it is *not* the
         raw combined result.
         """
-        logger = logging.getLogger("se-filter")
+        logger = logging.getLogger("se-dns")
         rewrite_answer = None
         reverse_dict = None
 
@@ -211,23 +182,21 @@ class _DNSCache(Cache):
         original_list = ".".join(question_split[-4:])
         address = ".".join(question_split[:-4])
 
-        if original_list in self.COMBINED_DNSBL_REVERSE_VALUES:
+        if (original_list in self.COMBINED_DNSBL_REVERSE_VALUES and
+                self.COMBINED):
             logger.debug("Rewriting %s to use combined list.", question)
             rewrite_answer = original_list
-            # XXX This needs to load the question from the configuration, not
-            # XXX be hard-coded.
-            question = address + ".se-combined.rbl.spamrl.com"
+            question = address + "." + self.COMBINED
             reverse_dict = self.COMBINED_DNSBL_REVERSE
-        elif original_list in self.COMBINED_URLBL_REVERSE_VALUES:
-            logger.debug("Rewriting %s to usecombined list.", question)
+        elif (original_list in self.COMBINED_URLBL_REVERSE_VALUES and
+                  self.COMBINED_URL):
+            logger.debug("Rewriting %s to use url combined list.", question)
             rewrite_answer = original_list
-            # XXX This needs to load the question from the configuration, not
-            # XXX be hard-coded.
-            question = address + ".se-url-combined.rbl.spamrl.com"
+            question = address + "." + self.COMBINED_URL
             reverse_dict = self.COMBINED_URLBL_REVERSE
 
-        logger.debug("Looking up %s: %s", qType, question)
-        result = super(_DNSCache, self).lookup(question, qType, cType, exact)
+        logger.debug("Looking up %s: %s", qtype, question)
+        result = super(_DNSCache, self).lookup(question, qtype, ctype, exact)
 
         if rewrite_answer and result:
             for answer in result:
@@ -251,8 +220,8 @@ _DNS_CACHE = _DNSCache()
 class DNSCache(object):
     """Proxy to the real DNSCache that allows per module timeouts."""
 
-    def __init__(self, dnsTimeout=10):
-        self.dnsTimeout = dnsTimeout
+    def __init__(self, dnstimeout=10):
+        self.dnsTimeout = dnstimeout
         self.COMBINED_DNSBL = _DNS_CACHE.COMBINED_DNSBL
         self.COMBINED_DNSBL_REVERSE = _DNS_CACHE.COMBINED_DNSBL_REVERSE
         self.COMBINED_DNSBL_REVERSE_VALUES = \
@@ -262,8 +231,8 @@ class DNSCache(object):
         self.COMBINED_URLBL_REVERSE_VALUES = \
             _DNS_CACHE.COMBINED_URLBL_REVERSE_VALUES
 
-    def lookup(self, question, qType="A", cType="IN", exact=False):
+    def lookup(self, question, qtype="A", ctype="IN", exact=False):
         """Like Cache.lookup()"""
         # XXX This is not thread-safe
         _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
-        return _DNS_CACHE.lookup(question, qType, cType, exact)
+        return _DNS_CACHE.lookup(question, qtype, ctype, exact)

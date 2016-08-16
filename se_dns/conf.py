@@ -1,6 +1,7 @@
 """Define Combined DNSBL lists"""
 
-
+COMBINED = ""
+COMBINED_URL = ""
 COMBINED_DNSBL = {
 }
 COMBINED_DNSBL_REVERSE = {
