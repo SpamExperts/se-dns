@@ -5,7 +5,6 @@ import socket
 import ipaddr
 import pickle
 import urllib2
-import urlopen
 import httplib
 import subprocess
 
@@ -68,8 +67,9 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
         req = urllib2.Request(include_external,
                               headers={"User-Agent": "se_dns/%s " %
                                        se_dns.__version__})
+		# XXX We should use requests.
         try:
-            local_ip = urlopen(req, timeout=5).read().strip()
+            local_ip = urllib2.urlopen(req, timeout=5).read().strip()
         except (socket.error, socket.timeout, urllib2.URLError,
                 httplib.HTTPException) as e:
             if logger:
