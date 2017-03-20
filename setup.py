@@ -26,7 +26,7 @@ distutils.core.setup(
     keywords='server',
     classifiers=CLASSIFIERS,
     # scripts=[],
-    requires=REQUIRES,
+    install_requires=REQUIRES,
     packages=[
         'se_dns',
     ],
