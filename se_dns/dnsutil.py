@@ -145,8 +145,18 @@ class _DNSCache(Cache):
         # combine lists that return multiple results).
         # Note that DNSBL and URLBL are convenient labels, but DNSWL and
         # URLYL may also be also here.
-        with open(config_path, "r") as fh:
-            data = json.load(fh)
+        if os.path.exists(config_path):
+            with open(config_path, "r") as fh:
+                data = json.load(fh)
+        else:
+            data = {
+              "COMBINED": "",
+              "COMBINED_URL": "",
+              "COMBINED_DNSBL": {},
+              "COMBINED_DNSBL_REVERSE": {},
+              "COMBINED_URLBL": {},
+              "COMBINED_URLBL_REVERSE": {}
+            }
         self.COMBINED = data["COMBINED"]
         self.COMBINED_URL = data["COMBINED_URL"]
         self.COMBINED_DNSBL = data["COMBINED_DNSBL"]

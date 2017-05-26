@@ -2,6 +2,11 @@
 History
 =======
 
+1.0.4 (????)
+------------------
+
+* Remove the requirement for the configuration file to exist.
+
 1.0.3 (2017-05-26)
 ------------------
 
