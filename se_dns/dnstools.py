@@ -1,4 +1,5 @@
 import os
+import ssl
 import pwd
 import time
 import socket
@@ -13,6 +14,8 @@ import se_dns
 
 DNS_CACHE = DNSCache()
 
+_LOCAL_IP_ADDRESSES_CACHE = {}
+
 
 def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
                        logger=None):
@@ -20,6 +23,10 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
 
     This calls an external process, so should be used lightly.
     """
+    try:
+        return _LOCAL_IP_ADDRESSES_CACHE[include_external]
+    except KeyError:
+        pass
     if use_cached:
         try:
             cache_good = time.time() - os.stat(cache_fn).st_mtime < 60 * 60 * 24
@@ -37,6 +44,7 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
                 else:
                     if logger:
                         logger.debug("Using cache for local IP addresses.")
+                    _LOCAL_IP_ADDRESSES_CACHE[include_external] = result
                     return result
         elif logger:
             logger.debug("Not using cache for local IP addresses.")
@@ -73,7 +81,11 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
         except (socket.error, socket.timeout, urllib2.URLError,
                 httplib.HTTPException) as e:
             if logger:
-                logger.warn("Unable to retrieve external IP: %s", e)
+                if hasattr(e, "errno") and e.errno == 101:
+                    # Network issue. Nothing we can do about this.
+                    logger.info("Unable to retrieve external IP: %s", e)
+                else:
+                    logger.warn("Unable to retrieve external IP: %s", e)
         else:
             if local_ip.startswith("::ffff:"):
                 # This is junk that nginx adds to IPv4 addresses.
@@ -108,7 +120,9 @@ def local_ip_addresses(cache_fn, include_external=False, use_cached=False,
             except (OSError, IOError) as e:
                 if logger:
                     logger.info("Unable to set owner/group of cache: %s", e)
-    return list(set(ips))
+    result = list(set(ips))
+    _LOCAL_IP_ADDRESSES_CACHE[include_external] = result
+    return result
 
 
 def name_to_ip(name, prefer_ipv6=True):
@@ -207,3 +221,20 @@ def hosts_equal(host1, host2, cache_fn, skip_getaddrinfo=False, logger=None,
         return host1_ip == host2_ip
     except (socket.error, UnicodeError):
         return False
+
+
+def host_in_list(host, host_list, skip_getaddrinfo=False, logger=None,
+                 skip_external=False):
+    """Return True if the host is equal to any of the ones in the specified
+    list.
+    """
+    return any(hosts_equal(host, other_host, skip_getaddrinfo, logger,
+                           skip_external) for other_host in host_list)
+
+
+def urlopen(url, data=None, timeout=None):
+    if hasattr(ssl, '_create_unverified_context'):
+        ssl_context = ssl._create_unverified_context()
+        return urllib2.urlopen(url, data, timeout, context=ssl_context)
+    else:
+        return urllib2.urlopen(url)
