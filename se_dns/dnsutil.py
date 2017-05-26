@@ -188,8 +188,8 @@ class _DNSCache(Cache):
             rewrite_answer = original_list
             question = address + "." + self.COMBINED
             reverse_dict = self.COMBINED_DNSBL_REVERSE
-        elif (original_list in self.COMBINED_URLBL_REVERSE_VALUES and
-                  self.COMBINED_URL):
+        elif (original_list in self.COMBINED_URLBL_REVERSE_VALUES
+              and self.COMBINED_URL):
             logger.debug("Rewriting %s to use url combined list.", question)
             rewrite_answer = original_list
             question = address + "." + self.COMBINED_URL
