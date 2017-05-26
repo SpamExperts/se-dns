@@ -23,6 +23,7 @@ This code was originally based on the dnscache in SpamBayes.
 
 from __future__ import absolute_import
 
+import json
 import struct
 import logging
 
@@ -32,11 +33,13 @@ import dns.rdatatype
 import dns.rdataclass
 import dns.reversename
 
-from . import conf
 
 DNSException = dns.exception.DNSException
 EmptyLabel = dns.name.EmptyLabel
 LabelTooLong = dns.name.LabelTooLong
+
+# Default config_path hardcoded
+CONFIG_PATH = "/etc/combined_lists.json"
 
 
 class Cache(object):
@@ -134,19 +137,26 @@ class _DNSCache(Cache):
     the list, and this class does the work of deciding whether to instead
     query the combined list.
     """
-    # These are the lists that we combine (we don't combine everything,
-    # because we can't combine white and black lists, and we don't
-    # combine lists that return multiple results).
-    # Note that DNSBL and URLBL are convenient labels, but DNSWL and
-    # URLYL may also be also here.
-    COMBINED = conf.COMBINED
-    COMBINED_URL = conf.COMBINED_URL
-    COMBINED_DNSBL = conf.COMBINED_DNSBL
-    COMBINED_DNSBL_REVERSE = conf.COMBINED_DNSBL_REVERSE
-    COMBINED_DNSBL_REVERSE_VALUES = COMBINED_DNSBL_REVERSE.values()
-    COMBINED_URLBL = conf.COMBINED_DNSBL
-    COMBINED_URLBL_REVERSE = conf.COMBINED_URLBL_REVERSE
-    COMBINED_URLBL_REVERSE_VALUES = COMBINED_URLBL_REVERSE.values()
+
+    def __init__(self, config_path=CONFIG_PATH):
+        super(_DNSCache, self).__init__()
+        # These are the lists that we combine (we don't combine everything,
+        # because we can't combine white and black lists, and we don't
+        # combine lists that return multiple results).
+        # Note that DNSBL and URLBL are convenient labels, but DNSWL and
+        # URLYL may also be also here.
+        with open(config_path, "r") as fh:
+            data = json.load(fh)
+        self.COMBINED = data["COMBINED"]
+        self.COMBINED_URL = data["COMBINED_URL"]
+        self.COMBINED_DNSBL = data["COMBINED_DNSBL"]
+        self.COMBINED_DNSBL_REVERSE = data["COMBINED_DNSBL_REVERSE"]
+        self.COMBINED_DNSBL_REVERSE_VALUES = \
+            self.COMBINED_DNSBL_REVERSE.values()
+        self.COMBINED_URLBL = data["COMBINED_URLBL"]
+        self.COMBINED_URLBL_REVERSE = data["COMBINED_URLBL_REVERSE"]
+        self.COMBINED_URLBL_REVERSE_VALUES = \
+            self.COMBINED_URLBL_REVERSE.values()
 
     def lookup(self, question, qtype="A", ctype="IN", exact=False):
         """Do an actual lookup.  'question' should be the hostname or IP
