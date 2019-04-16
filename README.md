@@ -5,4 +5,41 @@
 [![pyup](https://pyup.io/repos/github/spamexperts/se-dns/shield.svg "Updates")](https://pyup.io/repos/github/spamexperts/se-dns/)
 [![requires.io](https://requires.io/github/SpamExperts/se-dns/requirements.svg?branch=master "Requirements Status")](https://requires.io/github/SpamExperts/se-dns/requirements/?branch=master)
 
-# se-dns
+# se-dns 
+
+A wrapper around dnspython.
+
+The wrapper adds two sets of functionality.
+
+Firstly, it provides a single cache object, whenever possible, that is
+used throughout the lifetime of the process.  This maximises the use of
+the cached information, without having to pass a cache object around to
+different parts of the code.  The code handles the case where the
+timeout for the cache is different, without the caller needing to
+manage that.
+
+Secondly, it includes a transparent shortcut for various DNSBL lookups
+where we have a mirror of the list, and the list provides only a
+"yes listed" or "no not listed" response (or if it provides more
+responses, we are not interested in them).  It does this by looking up
+the value in a "combined" result, which provides results for many
+different lists, for the first lookup, and then uses that information
+for all subsequent checks.  From the caller's point of view, the
+original list is being checked.
+
+The default config_path for these lists is hardcoded to `/etc/combined_lists.json`.
+The config path has the following structure:
+
+```json
+{
+  "COMBINED": "",
+  "COMBINED_URL": "",
+  "COMBINED_DNSBL": {},
+  "COMBINED_DNSBL_REVERSE": {},
+  "COMBINED_URLBL": {},
+  "COMBINED_URLBL_REVERSE": {}
+}
+```
+
+This code was originally based on the dnscache in SpamBayes.
+
