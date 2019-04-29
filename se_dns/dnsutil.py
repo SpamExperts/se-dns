@@ -131,7 +131,7 @@ class Cache(object):
                 for i in reply.response.answer[0].to_rdataset().items]
 
     _CNAME = dns.rdatatype.from_text("CNAME")
-    def get_ns(self, domain):
+    def get_ns(self, domain, timeout=None):
         """Like query(domain, "NS"), but if the domain is a CNAME, then
         ask the domain's parent NS for the NS instead."""
         # XXX We should put this in the cache as well.
@@ -142,6 +142,8 @@ class Cache(object):
                 parent_ns = self.lookup(random.choice(
                     self.lookup(domain.split(".", 1)[1] + ".", "NS")))
                 parent_resolver = dns.resolver.Resolver(configure=False)
+                if timeout:
+                    parent_resolver.lifetime = timeout
                 parent_resolver.nameservers = parent_ns
                 parent_reply = parent_resolver.query(
                     domain, rdtype="NS", raise_on_no_answer=False)
@@ -279,3 +281,9 @@ class DNSCache(object):
         # XXX This is not thread-safe
         _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
         return _DNS_CACHE.lookup(question, qtype, ctype, exact)
+
+    def get_ns(self, domain):
+        """Like Cache.get_ns()"""
+        # XXX This is not thread-safe
+        _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
+        return _DNS_CACHE.get_ns(domain, self.dnsTimeout)
