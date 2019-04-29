@@ -2,7 +2,12 @@
 History
 =======
 
-1.0.4 (????)
+1.0.5 (???)
+------------------
+
+* Remove ``se_dns.dnstools``
+
+1.0.4 (2017-05-26)
 ------------------
 
 * Remove the requirement for the configuration file to exist.
