@@ -25,6 +25,7 @@ from __future__ import absolute_import
 
 import json
 import struct
+import random
 import logging
 
 import dns.resolver
@@ -127,6 +128,27 @@ class Cache(object):
                      answer.rdclass == rdclass) for i in sublist]
         return [i.to_text()
                 for i in reply.response.answer[0].to_rdataset().items]
+
+    _CNAME = dns.rdatatype.from_text("CNAME")
+    def get_ns(self, domain):
+        """Like query(domain, "NS"), but if the domain is a CNAME, then
+        ask the domain's parent NS for the NS instead."""
+        # XXX We should put this in the cache as well.
+        reply = self.queryObj.query(domain, rdtype="NS",
+                                    raise_on_no_answer=False)
+        for answer in reply.response.answer:
+            if answer.rdtype == self._CNAME:
+                parent_ns = self.lookup(random.choice(
+                    self.lookup(domain.split(".", 1)[1] + ".", "NS")))
+                parent_resolver = dns.resolver.Resolver(configure=False)
+                parent_resolver.nameservers = parent_ns
+                parent_reply = parent_resolver.query(
+                    domain, rdtype="NS", raise_on_no_answer=False)
+                for parent_answer in parent_reply.response.additional:
+                    yield parent_answer.name.to_text()
+            else:
+                for i in answer.to_rdataset().items:
+                    yield i.to_text()
 
 
 class _DNSCache(Cache):
