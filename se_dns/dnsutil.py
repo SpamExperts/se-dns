@@ -135,8 +135,11 @@ class Cache(object):
         """Like query(domain, "NS"), but if the domain is a CNAME, then
         ask the domain's parent NS for the NS instead."""
         # XXX We should put this in the cache as well.
-        reply = self.queryObj.query(domain, rdtype="NS",
-                                    raise_on_no_answer=False)
+        try:
+            reply = self.queryObj.query(domain, rdtype="NS",
+                                        raise_on_no_answer=False)
+        except dns.resolver.NXDOMAIN:
+            return
         for answer in reply.response.answer:
             if answer.rdtype == self._CNAME:
                 parent_ns = self.lookup(random.choice(
