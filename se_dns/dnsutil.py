@@ -131,30 +131,82 @@ class Cache(object):
                 for i in reply.response.answer[0].to_rdataset().items]
 
     _CNAME = dns.rdatatype.from_text("CNAME")
+    _EXPECTED_FAILURES = (
+        dns.resolver.NoAnswer,
+        dns.resolver.NoNameservers,
+        ValueError,
+        IndexError,
+        struct.error,
+        )
     def get_ns(self, domain, timeout=None):
         """Like query(domain, "NS"), but if the domain is a CNAME, then
         ask the domain's parent NS for the NS instead."""
-        # XXX We should put this in the cache as well.
+        try:
+            if self.failures[domain, "NS", "get_ns"]:
+                return
+        except KeyError:
+            pass
+        reply = self.queryObj.cache.get((domain, "NS", "get_ns"))
+        if reply:
+            for i in reply:
+                yield i
+            return
         try:
             reply = self.queryObj.query(domain, rdtype="NS",
                                         raise_on_no_answer=False)
         except dns.resolver.NXDOMAIN:
+            # This is actually a valid response, not an error condition.
+            self.failures[question, "NS", "get_ns"] = True
             return
+        except dns.exception.Timeout:
+            # This may change next time this is run, so warn about that.
+            log_method = getattr(self.logger, self.timeout_log_level)
+            log_method("%s NS lookup timed out.", domain)
+            return
+        except self._EXPECTED_FAILURES as e:
+            self.logger.debug("%s NS lookup failed: %s", domain, e)
+            return
+        full_answer = []
         for answer in reply.response.answer:
             if answer.rdtype == self._CNAME:
-                parent_ns = self.lookup(random.choice(
-                    self.lookup(domain.split(".", 1)[1] + ".", "NS")))
+                try:
+                    parent_ns = self.lookup(random.choice(
+                        self.lookup(domain.split(".", 1)[1] + ".", "NS")))
+                except IndexError:
+                    self.logger.debug("%s NS lookup failed.", domain)
+                    return
+                if not parent_ns:
+                    self.logger.debug("%s NS lookup has no parent.", domain)
+                    return
                 parent_resolver = dns.resolver.Resolver(configure=False)
                 if timeout:
                     parent_resolver.lifetime = timeout
                 parent_resolver.nameservers = parent_ns
-                parent_reply = parent_resolver.query(
-                    domain, rdtype="NS", raise_on_no_answer=False)
+                try:
+                    parent_reply = parent_resolver.query(
+                        domain, rdtype="NS", raise_on_no_answer=False)
+                except dns.resolver.NXDOMAIN:
+                    # This is actually a valid response, not an error condition.
+                    self.failures[question, "NS", "get_ns"] = True
+                    return
+                except dns.exception.Timeout:
+                    # This may change next time this is run, so warn about that.
+                    log_method = getattr(self.logger, self.timeout_log_level)
+                    log_method("%s NS parent lookup timed out.", domain)
+                    return
+                except self._EXPECTED_FAILURES as e:
+                    self.logger.debug("%s NS parent lookup failed: %s", domain, e)
+                    return
                 for parent_answer in parent_reply.response.additional:
-                    yield parent_answer.name.to_text()
+                    part_answer = parent_answer.name.to_text()
+                    yield part_answer
+                    full_answer.append(part_answer)
             else:
                 for i in answer.to_rdataset().items:
-                    yield i.to_text()
+                    part_answer = i.to_text()
+                    yield part_answer
+                    full_answer.append(part_answer)
+        self.queryObj.cache.put((domain, "NS", "get_ns"), full_answer)
 
 
 class _DNSCache(Cache):
