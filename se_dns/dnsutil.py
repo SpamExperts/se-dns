@@ -156,7 +156,7 @@ class Cache(object):
                                         raise_on_no_answer=False)
         except dns.resolver.NXDOMAIN:
             # This is actually a valid response, not an error condition.
-            self.failures[question, "NS", "get_ns"] = True
+            self.failures[domain, "NS", "get_ns"] = True
             return
         except dns.exception.Timeout:
             # This may change next time this is run, so warn about that.
@@ -187,7 +187,7 @@ class Cache(object):
                         domain, rdtype="NS", raise_on_no_answer=False)
                 except dns.resolver.NXDOMAIN:
                     # This is actually a valid response, not an error condition.
-                    self.failures[question, "NS", "get_ns"] = True
+                    self.failures[domain, "NS", "get_ns"] = True
                     return
                 except dns.exception.Timeout:
                     # This may change next time this is run, so warn about that.
