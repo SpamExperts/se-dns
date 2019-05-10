@@ -73,6 +73,8 @@ class Cache(object):
 
         # Use the package's caching system.
         self.queryObj.cache = dns.resolver.Cache()
+        # For our custom NS lookups.
+        self.ns_cache = {}
         # Except that we also want to cache failures, because we are
         # generally short-lived, and sometimes errors are slow to generate.
         self.failures = {}
@@ -146,7 +148,7 @@ class Cache(object):
                 return
         except KeyError:
             pass
-        reply = self.queryObj.cache.get((domain, "NS", "get_ns"))
+        reply = self.ns_cache.get(domain)
         if reply:
             for i in reply:
                 yield i
@@ -206,7 +208,7 @@ class Cache(object):
                     part_answer = i.to_text()
                     yield part_answer
                     full_answer.append(part_answer)
-        self.queryObj.cache.put((domain, "NS", "get_ns"), full_answer)
+        self.ns_cache[domain] = full_answer
 
 
 class _DNSCache(Cache):
