@@ -44,7 +44,8 @@ The config path has the following structure:
 This code was originally based on the dnscache in SpamBayes.
 
 # Installing notes
-```git clone git@github.com:Spamexperts/se-dns.git
+```
+git clone git@github.com:Spamexperts/se-dns.git
 cd se-dns/
 pip install . --upgrade #
 pip install -r requirements/tests.txt 
@@ -53,15 +54,14 @@ pip install -r requirements/base.txt
 
 # Testing
 Create a script to retrieve the ip of a given hostname
-```"""All the imports make sure the package works in python3"""
+```
+"""All the imports make sure the package works in python3"""
 import se_dns
 from se_dns import dnsutil
 from se_dns.dnsutil import DNSCache
-import socket
 import sys
 
 """This part should return the ipv4 of the hostname passed as parameter"""
-hostname = socket.gethostname()
 look_up = DNSCache()
 print(look_up.lookup(question=sys.argv[1]))
 ```
