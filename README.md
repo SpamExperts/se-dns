@@ -69,3 +69,6 @@ print(look_up.lookup(question=sys.argv[1]))
 Execute the script
 
 ```python your_script.py example.com```
+
+## Testing a branch ticket on this repository
+You can find an example [here](https://jira.solarwinds.com/browse/MMA-869?focusedCommentId=1717412&page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1717412)
