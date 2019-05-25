@@ -26,6 +26,7 @@ from __future__ import absolute_import
 import os
 import json
 import struct
+import random
 import logging
 
 import dns.resolver
@@ -72,6 +73,8 @@ class Cache(object):
 
         # Use the package's caching system.
         self.queryObj.cache = dns.resolver.Cache()
+        # For our custom NS lookups.
+        self.ns_cache = {}
         # Except that we also want to cache failures, because we are
         # generally short-lived, and sometimes errors are slow to generate.
         self.failures = {}
@@ -128,6 +131,84 @@ class Cache(object):
                      answer.rdclass == rdclass) for i in sublist]
         return [i.to_text()
                 for i in reply.response.answer[0].to_rdataset().items]
+
+    _CNAME = dns.rdatatype.from_text("CNAME")
+    _EXPECTED_FAILURES = (
+        dns.resolver.NoAnswer,
+        dns.resolver.NoNameservers,
+        ValueError,
+        IndexError,
+        struct.error,
+        )
+    def get_ns(self, domain, timeout=None):
+        """Like query(domain, "NS"), but if the domain is a CNAME, then
+        ask the domain's parent NS for the NS instead."""
+        try:
+            if self.failures[domain, "NS", "get_ns"]:
+                return
+        except KeyError:
+            pass
+        reply = self.ns_cache.get(domain)
+        if reply:
+            for i in reply:
+                yield i
+            return
+        try:
+            reply = self.queryObj.query(domain, rdtype="NS",
+                                        raise_on_no_answer=False)
+        except dns.resolver.NXDOMAIN:
+            # This is actually a valid response, not an error condition.
+            self.failures[domain, "NS", "get_ns"] = True
+            return
+        except dns.exception.Timeout:
+            # This may change next time this is run, so warn about that.
+            log_method = getattr(self.logger, self.timeout_log_level)
+            log_method("%s NS lookup timed out.", domain)
+            return
+        except self._EXPECTED_FAILURES as e:
+            self.logger.debug("%s NS lookup failed: %s", domain, e)
+            return
+        full_answer = []
+        for answer in reply.response.answer:
+            if answer.rdtype == self._CNAME:
+                try:
+                    parent_ns = self.lookup(random.choice(
+                        self.lookup(domain.split(".", 1)[1] + ".", "NS")))
+                except IndexError:
+                    self.logger.debug("%s NS lookup failed.", domain)
+                    return
+                if not parent_ns:
+                    self.logger.debug("%s NS lookup has no parent.", domain)
+                    return
+                parent_resolver = dns.resolver.Resolver(configure=False)
+                if timeout:
+                    parent_resolver.lifetime = timeout
+                parent_resolver.nameservers = parent_ns
+                try:
+                    parent_reply = parent_resolver.query(
+                        domain, rdtype="NS", raise_on_no_answer=False)
+                except dns.resolver.NXDOMAIN:
+                    # This is actually a valid response, not an error condition.
+                    self.failures[domain, "NS", "get_ns"] = True
+                    return
+                except dns.exception.Timeout:
+                    # This may change next time this is run, so warn about that.
+                    log_method = getattr(self.logger, self.timeout_log_level)
+                    log_method("%s NS parent lookup timed out.", domain)
+                    return
+                except self._EXPECTED_FAILURES as e:
+                    self.logger.debug("%s NS parent lookup failed: %s", domain, e)
+                    return
+                for parent_answer in parent_reply.response.additional:
+                    part_answer = parent_answer.name.to_text()
+                    yield part_answer
+                    full_answer.append(part_answer)
+            else:
+                for i in answer.to_rdataset().items:
+                    part_answer = i.to_text()
+                    yield part_answer
+                    full_answer.append(part_answer)
+        self.ns_cache[domain] = full_answer
 
 
 class _DNSCache(Cache):
@@ -257,3 +338,9 @@ class DNSCache(object):
         # XXX This is not thread-safe
         _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
         return _DNS_CACHE.lookup(question, qtype, ctype, exact)
+
+    def get_ns(self, domain):
+        """Like Cache.get_ns()"""
+        # XXX This is not thread-safe
+        _DNS_CACHE.queryObj.lifetime = self.dnsTimeout
+        return _DNS_CACHE.get_ns(domain, self.dnsTimeout)

@@ -2,10 +2,11 @@
 History
 =======
 
-1.0.5 (???)
+1.0.5 (2019-05-03)
 ------------------
 
 * Remove ``se_dns.dnstools``
+* Add a "get_ns" method that queries for the NS record and works with CNAMEs.
 
 1.0.4 (2017-05-26)
 ------------------
