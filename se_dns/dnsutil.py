@@ -172,8 +172,11 @@ class Cache(object):
         for answer in reply.response.answer:
             if answer.rdtype == self._CNAME:
                 try:
+                    parent = domain.split(".", 1)[1]
+                    if not parent.endswith("."):
+                        parent += "."
                     parent_ns = self.lookup(random.choice(
-                        self.lookup(domain.split(".", 1)[1] + ".", "NS")))
+                        self.lookup(parent, "NS")))
                 except IndexError:
                     self.logger.debug("%s NS lookup failed.", domain)
                     return

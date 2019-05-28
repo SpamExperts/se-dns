@@ -2,6 +2,11 @@
 History
 =======
 
+1.0.6 (2019-XX-XX)
+------------------
+
+* Avoid lookups with a double trailing dot in get_ns()
+
 1.0.5 (2019-05-03)
 ------------------
 
