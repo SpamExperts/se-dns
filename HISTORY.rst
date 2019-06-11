@@ -6,6 +6,7 @@ History
 ------------------
 
 * Avoid lookups with a double trailing dot in get_ns()
+* Catch dns.exception.SyntaxError in get_ns().
 
 1.0.5 (2019-05-03)
 ------------------
