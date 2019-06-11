@@ -136,6 +136,7 @@ class Cache(object):
     _EXPECTED_FAILURES = (
         dns.resolver.NoAnswer,
         dns.resolver.NoNameservers,
+        dns.exception.SyntaxError,
         ValueError,
         IndexError,
         struct.error,
