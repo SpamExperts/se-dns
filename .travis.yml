@@ -13,8 +13,9 @@ install:
 - pip install -r requirements/tests.txt
 - python setup.py install
 script:
-- py.test tests/unit/ --cov pad --cov scripts --cov-report term-missing
-- py.test tests/functional/
+- py.test tests/unit/ --cov se_dns --cov-report term-missing
+# comment functional tests until none are running
+#- py.test tests/functional/
 after_script:
 - pep8 --show-source pad
 after_success:
