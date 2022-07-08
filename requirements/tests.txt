@@ -1,4 +1,4 @@
-atomicwrites==1.4.0
+atomicwrites==1.4.1
 attrs==21.4.0
 mock==4.0.3
 pbr==5.9.0
